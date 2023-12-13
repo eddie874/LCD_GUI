@@ -1,48 +1,15 @@
 // IMPORTANT: LCDWIKI_KBV LIBRARY MUST BE SPECIFICALLY
 // CONFIGURED FOR EITHER THE TFT SHIELD OR THE BREAKOUT BOARD.
 
-//This program is a demo of how to show a bmp picture from SD card.
-
-//Set the pins to the correct ones for your development shield or breakout board.
-//the 16bit mode only use in Mega.you must modify the mode in the file of lcd_mode.h
-//when using the BREAKOUT BOARD only and using these 16 data lines to the LCD,
-//pin usage as follow:
-//             CS  CD  WR  RD  RST  D0  D1  D2  D3  D4  D5  D6  D7  D8  D9  D10  D11  D12  D13  D14  D15 
-//Arduino Mega 40  38  39  43  41   37  36  35  34  33  32  31  30  22  23  24   25   26   27   28   29
-//             TP_IRQ  MOSI  MISO  TP_CS  EX_CLK
-//Arduino Mega   44    51     50    53      52
-
-//when using the BREAKOUT BOARD only and using these 8 data lines to the LCD,
-//pin usage as follow:
-//             CS  CD  WR  RD  RST  D0  D1  D2  D3  D4  D5  D6  D7  D8  D9  D10  D11  D12  D13  D14  D15 
-//Arduino Mega 40  38  39  43  41   37  36  35  34  33  32  31  30  /   /    /    /    /    /    /    /
-//             TP_IRQ  MOSI  MISO  TP_CS  EX_CLK
-//Arduino Mega   44    51     50    53      52
-
-//Remember to set the pins to suit your display module!
-
-/**********************************************************************************
-* @attention
-*
-* THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-* WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-* TIME. AS A RESULT, QD electronic SHALL NOT BE HELD LIABLE FOR ANY
-* DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-* FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE 
-* CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
-**********************************************************************************/
-
 #include <SD.h>
 #include <SPI.h>
 #include <LCDWIKI_GUI.h> //Core graphics library
 #include <LCDWIKI_KBV.h> //Hardware-specific library
 
-//the definiens of 8bit mode as follow:
-//if the IC model is known or the modules is unreadable,you can use this constructed function
 LCDWIKI_KBV my_lcd(NT35510,40,38,39,43,41); //model,cs,cd,wr,rd,reset
 
 
-#define  BLACK   0x0000
+#define BLACK   0x0000
 #define BLUE    0x001F
 #define RED     0xF800
 #define GREEN   0x07E0
@@ -84,12 +51,6 @@ typedef struct {
     uint32_t bV4Reserved;         // Reserved (set to 0)
 } BITMAPV4HEADER;
 
-uint32_t bmp_offset = 0;
-uint32_t bmp_size = 0;
-uint16_t s_width = my_lcd.Get_Display_Width();  
-uint16_t s_heigh = my_lcd.Get_Display_Height();
-//int16_t PIXEL_NUMBER;
-
 char file_name [FILE_NAME_SIZE_MAX];
 
 uint16_t read_16(File fp)
@@ -113,73 +74,59 @@ uint32_t read_32(File fp)
 void drawBMP(File bmpFile) {
   if (bmpFile) {
     
+    // Initialize header struct
     BITMAPV4HEADER bmpHeader;
+
     // Read and validate BMP file signature
     if(read_16(bmpFile) != 0x4D42)
     {
        Serial.println("No 0x4D42");
       return false;  
     }
+
     // Read BITMAPV4HEADER structure
     uint32_t size = read_32(bmpFile);
     uint32_t creator_info = read_32(bmpFile);
     uint32_t offset = read_32(bmpFile);
     bmpFile.read(reinterpret_cast<char*>(&bmpHeader), sizeof(BITMAPV4HEADER));
+
+
+    // DEBUG PRINT LINES 
     // bmpHeader.bV4Size = read_32(bmpFile);
     // bmpHeader.bV4Width = read_32(bmpFile);
     // bmpHeader.bV4Height = read_32(bmpFile);
     // bmpHeader.bV4Planes = read_16(bmpFile);
     // bmpHeader.bV4BitCount = read_16(bmpFile);
-
-    Serial.println((String)"Size is "+ size);
-    Serial.println((String)"Creator Info is "+ creator_info);
-    Serial.println((String)"Offset is "+offset);
-    Serial.println((String)"bmpHeader.bV4Size is "+bmpHeader.bV4Size);
-    Serial.println((String)"Width is "+bmpHeader.bV4Width);
-    Serial.println((String)"Height is "+bmpHeader.bV4Height);
-    Serial.println((String)"Red bitmask is "+bmpHeader.bV4RedMask);
-    Serial.println((String)"Blue bitmask is "+bmpHeader.bV4BlueMask);
-    Serial.println((String)"Green bitmask is "+bmpHeader.bV4GreenMask);
+    // Serial.println((String)"Size is "+ size);
+    // Serial.println((String)"Creator Info is "+ creator_info);
+    // Serial.println((String)"Offset is "+offset);
+    // Serial.println((String)"bmpHeader.bV4Size is "+bmpHeader.bV4Size);
+    // Serial.println((String)"Width is "+bmpHeader.bV4Width);
+    // Serial.println((String)"Height is "+bmpHeader.bV4Height);
+    // Serial.println((String)"Red bitmask is "+bmpHeader.bV4RedMask);
+    // Serial.println((String)"Blue bitmask is "+bmpHeader.bV4BlueMask);
+    // Serial.println((String)"Green bitmask is "+bmpHeader.bV4GreenMask);
 
     // Skip to image data
     bmpFile.seek(offset-1);
 
     // Read image data
-    int padding = (4 - (bmpHeader.bV4Width * bmpHeader.bV4BitCount / 8) % 4) % 4;
     for (int y = 0; y < abs(bmpHeader.bV4Height); ++y) {
       for (int x = 0; x < bmpHeader.bV4Width; ++x) {
-        // Read pixel color based on the bV4BitCount (assuming 24 bits per pixel)
+        // Read pixel color based on the bV4BitCount 
         uint8_t pixel[3] = {0};  // Assuming 32 bits per pixel (including alpha channel)
         bmpFile.read(reinterpret_cast<char*>(&pixel), bmpHeader.bV4BitCount / 8);
-        // pixel[0] = bmpFile.read();
-        // pixel[1] = bmpFile.read();
-        // pixel[2] = bmpFile.read();
-        // pixel[3] = bmpFile.read();
 
         // Extract RGB values (assuming little-endian)
         uint8_t blue = pixel[1] ;
         uint8_t green = pixel[2] ;
         uint8_t red = pixel[3] ;
 
-        // Serial.println((String) blue);
-        // Serial.println((String) green);
-        // Serial.println((String) red);
-        // break;
-        
-        // Combine color components into a 16-bit color (assuming RGB565 format)
-        uint16_t color = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
-        // Serial.println((String) color);
-        // break;
 
         // Draw the pixel on the LCD
-        //drawPixel(x, y, color);
-        //Serial.println(color);
         my_lcd.Set_Draw_color(red, green, blue);
         my_lcd.Draw_Pixel(x,y);
       }
-      // Skip padding
-      //bmpFile.seek(bmpFile.position() + padding);
-      //break;
     }
 
     Serial.println("BMP image drawn on the LCD.");
@@ -191,14 +138,14 @@ void drawBMP(File bmpFile) {
 
 void setup() 
 {
-    Serial.begin(9600);
+   Serial.begin(9600);
    my_lcd.Init_LCD();
    my_lcd.Fill_Screen(BLUE);
-   //s_width = my_lcd.Get_Display_Width();  
-   //s_heigh = my_lcd.Get_Display_Height();
-   //PIXEL_NUMBER = my_lcd.Get_Display_Width()/4;
-   strcpy(file_name,"hakbal.bmp");
-  //Init SD_Card
+
+   // BMP File name (exclude ".bmp")
+   strcpy(file_name,"kibo.bmp");
+
+   //Init SD_Card
    pinMode(48, OUTPUT);
    
     if (!SD.begin(48)) 
@@ -214,16 +161,16 @@ void setup()
 void loop() 
 {
     File bmp_file;
-    Serial.println(file_name);
     bmp_file = SD.open(file_name, (O_READ | O_WRITE));
     if(!bmp_file){
       my_lcd.Set_Text_Back_colour(BLUE);
       my_lcd.Set_Text_colour(WHITE);    
       my_lcd.Set_Text_Size(1);
-      my_lcd.Print_String("didnt find BMPimage!",0,10);
-      Serial.println("didnt find BMPimagge!");
+      my_lcd.Print_String("Couldn't find image!",0,10);
       while(1);
     }   
+    
+    // Draw/close BMP File then suspend
     drawBMP(bmp_file);
     bmp_file.close(); 
     while(1);
